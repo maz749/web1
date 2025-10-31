@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проверка точки — FastCGI (Java)</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <header class="site-header">
+        <div class="header-content">
+            <h1>Лабораторная работа по веб-программированию</h1>
+            <div class="header-info">
+                <div class="info-item">
+                    <span class="label">ФИО:</span>
+                    <strong>Бирюков Ян Владиславович</strong>
+                </div>
+                <div class="info-item">
+                    <span class="label">Группа:</span>
+                    <strong>P3221</strong>
+                </div>
+                <div class="info-item">
+                    <span class="label">Вариант:</span>
+                    <strong id="variant">N 465119</strong>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-content">
+        <section class="card graph-section">
+            <div class="card-header">
+                <h2>График координатной плоскости</h2>
+                <div class="zoom-controls">
+                    <button id="zoom-in" class="zoom-btn" title="Увеличить">+</button>
+                    <button id="zoom-reset" class="zoom-btn" title="Сбросить">⟲</button>
+                    <button id="zoom-out" class="zoom-btn" title="Уменьшить">−</button>
+                </div>
+            </div>
+            <div class="svg-container">
+                <svg id="plot" viewBox="0 0 400 400" width="400" height="400">
+                    <defs>
+                        <linearGradient id="areaGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" style="stop-color:#667eea;stop-opacity:0.3" />
+                            <stop offset="100%" style="stop-color:#764ba2;stop-opacity:0.3" />
+                        </linearGradient>
+                        <filter id="shadow">
+                            <feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity="0.3"/>
+                        </filter>
+                    </defs>
+
+                    <!-- Сетка -->
+                    <g id="grid" class="grid"></g>
+
+                    <!-- Оси -->
+                    <line x1="0" y1="200" x2="400" y2="200" class="axis"/>
+                    <line x1="200" y1="0" x2="200" y2="400" class="axis"/>
+
+                    <!-- Стрелки осей -->
+                    <polygon points="400,200 390,195 390,205" class="axis-arrow"/>
+                    <polygon points="200,0 195,10 205,10" class="axis-arrow"/>
+
+                    <!-- Метки X -->
+                    <line x1="250" y1="195" x2="250" y2="205" class="tick"/><text x="250" y="220" class="ticktxt">R/2</text>
+                    <line x1="300" y1="195" x2="300" y2="205" class="tick"/><text x="300" y="220" class="ticktxt">R</text>
+                    <line x1="150" y1="195" x2="150" y2="205" class="tick"/><text x="150" y="220" class="ticktxt">-R/2</text>
+                    <line x1="100" y1="195" x2="100" y2="205" class="tick"/><text x="100" y="220" class="ticktxt">-R</text>
+
+                    <!-- Метки Y -->
+                    <line x1="195" y1="150" x2="205" y2="150" class="tick"/><text x="215" y="155" class="ticktxt">R/2</text>
+                    <line x1="195" y1="100" x2="205" y2="100" class="tick"/><text x="215" y="105" class="ticktxt">R</text>
+                    <line x1="195" y1="250" x2="205" y2="250" class="tick"/><text x="215" y="255" class="ticktxt">-R/2</text>
+                    <line x1="195" y1="300" x2="205" y2="300" class="tick"/><text x="215" y="305" class="ticktxt">-R</text>
+
+                    <!-- Подписи осей -->
+                    <text x="385" y="190" class="axis-label">X</text>
+                    <text x="210" y="15" class="axis-label">Y</text>
+
+                    <g id="area"></g>
+                    <g id="points"></g>
+                </svg>
+            </div>
+        </section>
+
+        <section class="card form-section">
+            <div class="card-header">
+                <h2>Проверка попадания точки</h2>
+            </div>
+            <form id="point-form" action="/fcgi-bin/labwork1.jar" method="post" novalidate>
+                <div class="form-grid">
+                    <div class="field">
+                        <label id="x-label">Координата X</label>
+                        <div id="x-boxes" class="checkbox-group">
+                            <label class="checkbox-btn"><input type="checkbox" name="x" value="-4"><span>-4</span></label>
+                            <label class="checkbox-btn"><input type="checkbox" name="x" value="-3"><span>-3</span></label>
+                            <label class="checkbox-btn"><input type="checkbox" name="x" value="-2"><span>-2</span></label>
+                            <label class="checkbox-btn"><input type="checkbox" name="x" value="-1"><span>-1</span></label>
+                            <label class="checkbox-btn"><input type="checkbox" name="x" value="0"><span>0</span></label>
+                            <label class="checkbox-btn"><input type="checkbox" name="x" value="1"><span>1</span></label>
+                            <label class="checkbox-btn"><input type="checkbox" name="x" value="2"><span>2</span></label>
+                            <label class="checkbox-btn"><input type="checkbox" name="x" value="3"><span>3</span></label>
+                            <label class="checkbox-btn"><input type="checkbox" name="x" value="4"><span>4</span></label>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="y">Координата Y <span class="hint">(от -5 до 5)</span></label>
+                        <input id="y" name="y" type="text" inputmode="decimal" placeholder="Введите значение Y" />
+                    </div>
+
+                    <div class="field">
+                        <label id="r-label">Радиус R</label>
+                        <div id="r-radios" class="radio-group">
+                            <label class="radio-btn"><input type="radio" name="r" value="1"><span>1</span></label>
+                            <label class="radio-btn"><input type="radio" name="r" value="2" checked><span>2</span></label>
+                            <label class="radio-btn"><input type="radio" name="r" value="3"><span>3</span></label>
+                            <label class="radio-btn"><input type="radio" name="r" value="4"><span>4</span></label>
+                            <label class="radio-btn"><input type="radio" name="r" value="5"><span>5</span></label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="submit-btn">Проверить точку</button>
+                    <span id="error" class="error-msg"></span>
+                </div>
+            </form>
+        </section>
+
+        <section class="card history-section">
+            <div class="card-header">
+                <h2>История проверок</h2>
+                <div class="pagination-info">
+                    <span id="results-count">Всего: 0</span>
+                </div>
+            </div>
+            <div class="table-wrap">
+                <table id="results">
+                    <thead>
+                    <tr>
+                        <th>X</th>
+                        <th>Y</th>
+                        <th>R</th>
+                        <th>Попадание</th>
+                        <th>Время</th>
+                        <th>Вр. скрипта (мс)</th>
+                    </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="pagination">
+                <button id="prev-page" class="pagination-btn" disabled>← Назад</button>
+                <span id="page-info" class="page-info">Страница 1 из 1</span>
+                <button id="next-page" class="pagination-btn" disabled>Вперед →</button>
+            </div>
+        </section>
+    </div>
+</div>
+
+<script src="index.js"></script>
+</body>
+</html>
