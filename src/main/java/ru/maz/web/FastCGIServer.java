@@ -9,10 +9,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-
-
 public class FastCGIServer {
-
 
     private static final byte FCGI_VERSION_1 = 1;
     private static final byte FCGI_BEGIN_REQUEST = 1;
@@ -23,6 +20,8 @@ public class FastCGIServer {
     private static final byte FCGI_STDOUT = 6;
 
     private static final int FCGI_REQUEST_COMPLETE = 0;
+
+    private static final DateTimeFormatter LOG_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
 
     private static class FcgiHeader {
         byte version, type;
@@ -43,20 +42,30 @@ public class FastCGIServer {
         }
     }
 
-
     private static final List<ResultRow> HISTORY = new CopyOnWriteArrayList<>();
 
+    private static void log(Socket socket, String message) {
+        String timestamp = ZonedDateTime.now(ZoneId.of("Europe/Moscow")).format(LOG_TIME_FORMAT);
+        String client = socket.getInetAddress().getHostAddress() + ":" + socket.getPort();
+        System.err.printf("[%s] [Client: %s] %s%n", timestamp, client, message);
+    }
+
     public static void main(String[] args) throws Exception {
-        int port = (args.length > 0) ? Integer.parseInt(args[0]) : 33333;
+        int port = (args.length > 0) ? Integer.parseInt(args[0]) : 14889;
         try (ServerSocket server = new ServerSocket()) {
             server.setReuseAddress(true);
             server.bind(new InetSocketAddress("127.0.0.1", port));
             System.err.println("[FastCGI] Listening on 127.0.0.1:" + port);
             while (true) {
                 Socket s = server.accept();
-                try { handleConnection(s); }
-                catch (Throwable t) { t.printStackTrace(System.err); }
-                finally { try { s.close(); } catch (IOException ignore) {} }
+                try {
+                    handleConnection(s);
+                } catch (Throwable t) {
+                    log(s, "Unhandled exception: " + t);
+                    t.printStackTrace(System.err);
+                } finally {
+                    try { s.close(); } catch (IOException ignore) {}
+                }
             }
         }
     }
@@ -71,27 +80,43 @@ public class FastCGIServer {
         short requestId = -1;
         boolean paramsDone = false, stdinDone = false;
 
+        log(s, "New FastCGI connection");
 
         while (!(paramsDone && stdinDone)) {
             FcgiHeader h = readHeader(in);
-            if (h == null) return;
+            if (h == null) {
+                log(s, "Incomplete header, closing");
+                return;
+            }
             byte[] content = readFully(in, h.contentLength);
             if (h.paddingLength > 0) readFully(in, h.paddingLength);
             if (requestId == -1) requestId = h.requestId;
 
             switch (h.type) {
-                case FCGI_BEGIN_REQUEST: break;
+                case FCGI_BEGIN_REQUEST:
+                    log(s, "BEGIN_REQUEST (id=" + requestId + ")");
+                    break;
                 case FCGI_PARAMS:
-                    if (content.length == 0) paramsDone = true;
-                    else env.putAll(decodeNameValuePairs(content));
+                    if (content.length == 0) {
+                        paramsDone = true;
+                        log(s, "PARAMS complete");
+                    } else {
+                        env.putAll(decodeNameValuePairs(content));
+                    }
                     break;
                 case FCGI_STDIN:
-                    if (content.length == 0) stdinDone = true;
-                    else stdinBuf.write(content);
+                    if (content.length == 0) {
+                        stdinDone = true;
+                        log(s, "STDIN complete");
+                    } else {
+                        stdinBuf.write(content);
+                    }
                     break;
                 case FCGI_ABORT_REQUEST:
+                    log(s, "ABORT_REQUEST received");
                     return;
                 default:
+                    log(s, "Unknown record type: " + h.type);
             }
         }
 
@@ -106,6 +131,8 @@ public class FastCGIServer {
                         ? body : ""
         );
 
+        log(s, String.format("Processing %s | x=%s, y=%s, r=%s", method, form.get("x"), form.get("y"), form.get("r")));
+
         ResponsePayload payload;
         try {
             double x = parseDouble(form.get("x"), "x");
@@ -115,7 +142,6 @@ public class FastCGIServer {
 
             boolean hit = checkHit(x, y, r);
             double ms = (System.nanoTime() - t0) / 1_000_000.0;
-
             ms = Math.round(ms * 1000.0) / 1000.0;
 
             String now = ZonedDateTime.now(ZoneId.of("Europe/Moscow"))
@@ -125,48 +151,45 @@ public class FastCGIServer {
             HISTORY.add(row);
 
             payload = ResponsePayload.ok(row, HISTORY);
+
+            log(s, String.format("SUCCESS | hit=%b | %.3f ms", hit, ms));
         } catch (Exception ex) {
             payload = ResponsePayload.error(ex.getMessage());
+            log(s, "ERROR: " + ex.getMessage());
         }
-
 
         byte[] bodyJson = payload.toJson().getBytes(StandardCharsets.UTF_8);
         ByteArrayOutputStream resp = new ByteArrayOutputStream();
-        resp.write("Status: 200 OK\r\n".getBytes(StandardCharsets.UTF_8));
-        resp.write("Content-Type: application/json; charset=utf-8\r\n\r\n".getBytes(StandardCharsets.UTF_8));
+        resp.write("HTTP/1.1 200 OK\r\n".getBytes(StandardCharsets.UTF_8));
+        resp.write("Content-Type: application/json; charset=utf-8\r\n".getBytes(StandardCharsets.UTF_8));
+        resp.write("Connection: close\r\n".getBytes(StandardCharsets.UTF_8));
+        resp.write("\r\n".getBytes(StandardCharsets.UTF_8));
         resp.write(bodyJson);
-
 
         writeRecord(out, FCGI_STDOUT, requestId, resp.toByteArray());
         writeRecord(out, FCGI_STDOUT, requestId, new byte[0]);
         writeEndRequest(out, requestId, FCGI_REQUEST_COMPLETE);
-        out.flush();
-    }
 
+        log(s, "Response sent, connection closed");
+    }
 
     private static boolean checkHit(double x, double y, double r) {
         final double EPS = 1e-9;
 
-        // I
         if (x >= -EPS && y >= -EPS) {
             return x <= r + EPS && y <= r/2.0 + EPS;
         }
 
-        // II
         if (x <= EPS && y >= -EPS) {
             return x*x + y*y <= (r*r)/4.0 + EPS;
         }
 
-        // IV
-        // 0 ≤ x ≤ R, -x ≤ y ≤ 0
         if (x >= -EPS && y <= EPS) {
             return x <= r + EPS && y >= -x - EPS;
         }
 
-        // III
         return false;
     }
-
 
 
     private static FcgiHeader readHeader(InputStream in) throws IOException {
@@ -237,8 +260,6 @@ public class FastCGIServer {
         writeRecord(out, FCGI_END_REQUEST, reqId, body);
     }
 
-
-
     private static Map<String, String> parseFormUrlencoded(String s) {
         Map<String, String> m = new HashMap<>();
         if (s == null || s.isEmpty()) return m;
@@ -249,7 +270,7 @@ public class FastCGIServer {
             try {
                 m.put(URLDecoder.decode(k, StandardCharsets.UTF_8), URLDecoder.decode(v, StandardCharsets.UTF_8));
             } catch (Exception e) {
-
+                // ignore
             }
         }
         return m;

@@ -1,40 +1,46 @@
 plugins {
-    id 'java'
+    id("java")
+    id("application")
+    id("com.github.johnrengelman.shadow") version "8.1.1" // fat-jar
 }
 
-group = 'org.example'
-version = '1.0-SNAPSHOT'
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
-}
+group = "org.example"
+version = "1.0.0"
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    testImplementation platform('org.junit:junit-bom:5.10.0')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
+    implementation(files("libs/fastcgi-lib.jar"))
+
+    testImplementation(platform("org.junit:junit-bom:5.10.0"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
 }
 
-test {
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
+}
+
+application {
+
+    mainClass.set("ru.maz.web.FastCGIServer")
+}
+
+tasks.test {
     useJUnitPlatform()
 }
 
-dependencies {
-    implementation files('./libs/fastcgi-lib.jar') // Указываем путь к библиотеке
-}
-// Этот блок нужен для сборки fat jar файла
-jar {
+tasks.jar {
     manifest {
-        attributes(
-                'Main-Class': 'ru.maz.web.FastCGIServer'
-        )
+        attributes["Main-Class"] = application.mainClass.get()
     }
-    from {
-        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
-    }
-    archiveFileName = 'labwork1.jar'
+}
+
+tasks.shadowJar {
+    archiveBaseName.set("web_itmo")
+    archiveClassifier.set("")
+    archiveVersion.set("")
 }

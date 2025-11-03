@@ -50,30 +50,24 @@
                         </filter>
                     </defs>
 
-                    <!-- Сетка -->
                     <g id="grid" class="grid"></g>
 
-                    <!-- Оси -->
                     <line x1="0" y1="200" x2="400" y2="200" class="axis"/>
                     <line x1="200" y1="0" x2="200" y2="400" class="axis"/>
 
-                    <!-- Стрелки осей -->
                     <polygon points="400,200 390,195 390,205" class="axis-arrow"/>
                     <polygon points="200,0 195,10 205,10" class="axis-arrow"/>
 
-                    <!-- Метки X -->
                     <line x1="250" y1="195" x2="250" y2="205" class="tick"/><text x="250" y="220" class="ticktxt">R/2</text>
                     <line x1="300" y1="195" x2="300" y2="205" class="tick"/><text x="300" y="220" class="ticktxt">R</text>
                     <line x1="150" y1="195" x2="150" y2="205" class="tick"/><text x="150" y="220" class="ticktxt">-R/2</text>
                     <line x1="100" y1="195" x2="100" y2="205" class="tick"/><text x="100" y="220" class="ticktxt">-R</text>
 
-                    <!-- Метки Y -->
                     <line x1="195" y1="150" x2="205" y2="150" class="tick"/><text x="215" y="155" class="ticktxt">R/2</text>
                     <line x1="195" y1="100" x2="205" y2="100" class="tick"/><text x="215" y="105" class="ticktxt">R</text>
                     <line x1="195" y1="250" x2="205" y2="250" class="tick"/><text x="215" y="255" class="ticktxt">-R/2</text>
                     <line x1="195" y1="300" x2="205" y2="300" class="tick"/><text x="215" y="305" class="ticktxt">-R</text>
 
-                    <!-- Подписи осей -->
                     <text x="385" y="190" class="axis-label">X</text>
                     <text x="210" y="15" class="axis-label">Y</text>
 
@@ -87,7 +81,7 @@
             <div class="card-header">
                 <h2>Проверка попадания точки</h2>
             </div>
-            <form id="point-form" action="/fcgi-bin/labwork1.jar" method="post" novalidate>
+            <form id="point-form" action="/fcgi-bin/check_hit" method="post" novalidate>
                 <div class="form-grid">
                     <div class="field">
                         <label id="x-label">Координата X</label>
@@ -159,6 +153,6 @@
     </div>
 </div>
 
-<script src="index.js"></script>
+<script src="script.js"></script>
 </body>
 </html>

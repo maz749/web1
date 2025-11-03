@@ -10,20 +10,16 @@
     const CX = 200, CY = 200;
     const SCALE = 100;
 
-    // Переменные для зума
     let zoomLevel = 1;
     const ZOOM_MIN = 0.5;
     const ZOOM_MAX = 3;
     const ZOOM_STEP = 0.2;
 
-    // Пагинация
     let currentPage = 1;
     const ROWS_PER_PAGE = 10;
     let allHistory = [];
 
-    // ==============================================
-    // ФУНКЦИИ ПРЕОБРАЗОВАНИЯ КООРДИНАТ
-    // ==============================================
+
     function toPx(x, y, r) {
         const k = SCALE / r;
         return {
@@ -40,14 +36,11 @@
         return {x, y};
     }
 
-    // ==============================================
-    // ОТРИСОВКА СЕТКИ
-    // ==============================================
+
     function renderGrid() {
         GRID.innerHTML = "";
         const step = 50;
 
-        // Вертикальные линии
         for (let x = step; x < 400; x += step) {
             if (x === CX) continue;
             const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -58,7 +51,6 @@
             GRID.appendChild(line);
         }
 
-        // Горизонтальные линии
         for (let y = step; y < 400; y += step) {
             if (y === CY) continue;
             const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
@@ -70,18 +62,15 @@
         }
     }
 
-    // ==============================================
-    // ОТРИСОВКА ФИГУР (НОВЫЙ ВАРИАНТ ИЗ ИЗОБРАЖЕНИЯ)
-    // ==============================================
+
     function renderArea(r) {
         if (!(r > 0)) return;
         GAREA.innerHTML = "";
         const k = SCALE / r;
 
-        // 1. ПОЛУКРУГ СПРАВА (1-я четверть): x≥0, y≥0, x²+y²≤(R/2)²
+
         const radius = (r / 2) * k;
         const arc = document.createElementNS("http://www.w3.org/2000/svg", "path");
-        // Рисуем дугу от (R/2, 0) до (0, R/2) через (R/2·cos45°, R/2·sin45°)
         arc.setAttribute("d",
             `M ${CX} ${CY} ` +
             `L ${CX + radius} ${CY} ` +
@@ -91,8 +80,6 @@
         arc.setAttribute("class", "shape");
         GAREA.appendChild(arc);
 
-        // 2. ТРЕУГОЛЬНИК СЛЕВА (2-я четверть): x≤0, y≤0
-        // Вершины: (0,0), (-R,0), (0,-R/2)
         const A = toPx(0, 0, r);
         const B = toPx(-r, 0, r);
         const C = toPx(0, -r/2, r);
@@ -101,8 +88,7 @@
         tri.setAttribute("class", "shape");
         GAREA.appendChild(tri);
 
-        // 3. ПРЯМОУГОЛЬНИК СНИЗУ (4-я четверть): x≥0, -R≤y≤0
-        // От (0,0) до (R/2,0) до (R/2,-R) до (0,-R)
+
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
         rect.setAttribute("x", CX);
         rect.setAttribute("y", CY);
@@ -112,9 +98,7 @@
         GAREA.appendChild(rect);
     }
 
-    // ==============================================
-    // УПРАВЛЕНИЕ ЗУМОМ
-    // ==============================================
+
     function applyZoom() {
         svg.style.transform = `scale(${zoomLevel})`;
     }
@@ -138,9 +122,7 @@
         applyZoom();
     });
 
-    // ==============================================
-    // ПРЕВЬЮ ТОЧКИ
-    // ==============================================
+
     let previewDot = null;
 
     function removePreview() {
@@ -169,9 +151,7 @@
         previewDot.setAttribute("cy", Y);
     }
 
-    // ==============================================
-    // КЛИК ПО ГРАФИКУ
-    // ==============================================
+
     svg.addEventListener('click', (ev) => {
         const r = getSelectedR();
         if (!(r > 0)) return;
@@ -190,9 +170,7 @@
         plotPreview(x, y, r);
     });
 
-    // ==============================================
-    // РАБОТА С ФОРМОЙ
-    // ==============================================
+
     document.querySelectorAll('input[name="x"]').forEach(cb => {
         cb.addEventListener('change', function() {
             if (this.checked) {
@@ -255,9 +233,7 @@
         }
     }
 
-    // ==============================================
-    // ПАГИНАЦИЯ
-    // ==============================================
+
     function updatePagination() {
         const totalPages = Math.max(1, Math.ceil(allHistory.length / ROWS_PER_PAGE));
 
@@ -310,10 +286,9 @@
         }
     });
 
-    // ==============================================
-    // ОТРИСОВКА ИСТОРИИ И ТОЧЕК
-    // ==============================================
+
     function draw(history) {
+    console.log("вызван draw(), history:", history)
         allHistory = (history || [])
             .slice()
             .sort((a, b) => new Date(b.time) - new Date(a.time));
@@ -321,7 +296,6 @@
         currentPage = 1;
         renderPage();
 
-        // Отрисовка точек на графике
         GPTS.innerHTML = "";
 
         const r = getSelectedR();
@@ -345,9 +319,7 @@
         });
     }
 
-    // ==============================================
-    // ОТПРАВКА ФОРМЫ
-    // ==============================================
+
     form.addEventListener('submit', function(e) {
         e.preventDefault();
         errEl.textContent = "";
@@ -367,11 +339,24 @@
 
         fetch(form.action, {
             method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'},
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+            },
             body: body.toString(),
+            credentials: 'omit'
         })
-        .then(resp => resp.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const ct = response.headers.get("content-type");
+            if (!ct || !ct.includes("application/json")) {
+                throw new Error("Сервер вернул не JSON");
+            }
+            return response.json();
+        })
         .then(data => {
+            console.log("Успешный ответ:", data);
             if (!data.ok) {
                 errEl.textContent = data.error || "Ошибка сервера";
                 return;
@@ -380,12 +365,13 @@
             renderArea(r);
             draw(data.history);
         })
-        .catch(() => errEl.textContent = "Сеть/сервер недоступен");
+        .catch(err => {
+            console.error("Ошибка fetch:", err);
+            errEl.textContent = "Сеть/сервер недоступен: " + err.message;
+        });
     });
 
-    // ==============================================
-    // ИНИЦИАЛИЗАЦИЯ
-    // ==============================================
+
     renderGrid();
     const r0 = getSelectedR();
     if (r0) renderArea(r0);
