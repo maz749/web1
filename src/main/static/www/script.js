@@ -291,7 +291,6 @@
     });
 
 
-    // КЛЮЧЕВАЯ ФУНКЦИЯ: Рисуем ВСЕ точки, масштабируя под текущий R
     function draw(history) {
         console.log("вызван draw(), history:", history);
         allHistory = (history || [])
@@ -315,7 +314,6 @@
             circle.setAttribute("r", 5);
             circle.setAttribute("class", `pt ${row.hit ? 'hit' : 'miss'}`);
 
-            // Подсветка последней точки
             if (i === 0) {
                 circle.classList.add('latest-point');
             }
@@ -372,7 +370,7 @@
             }
             removePreview();
             renderArea(r);
-            draw(data.history); // Перерисовываем все точки
+            draw(data.history);
         })
         .catch(err => {
             console.error("Ошибка fetch:", err);
@@ -381,7 +379,6 @@
     });
 
 
-    // Инициализация
     renderGrid();
     const r0 = getSelectedR();
     if (r0) renderArea(r0);
