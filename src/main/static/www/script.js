@@ -211,7 +211,21 @@
     function getY() {
         const raw = document.getElementById('y').value.trim().replace(',', '.');
         if (raw === "" || !/^[-+]?(?:\d+|\d*\.\d+)$/.test(raw)) return null;
-        return Number(raw);
+
+        const num = Number(raw);
+        if (num < -5 || num > 5) return null;
+
+        const match = raw.match(/^[-+]?(\d+)(\.\d*)?$/);
+        if (!match) return null;
+
+        const intPart = match[1];
+        const fracPart = match[2] || "";
+
+        if (intPart.length > 1 || (intPart === "5" && fracPart !== "")) {
+            return null;
+        }
+
+        return num;
     }
 
     function getSelectedR() {

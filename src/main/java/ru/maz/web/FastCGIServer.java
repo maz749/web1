@@ -185,7 +185,7 @@ public class FastCGIServer {
         }
 
         if (x >= -EPS && y <= EPS) {
-            return x <= r + EPS && y >= -x - EPS;
+            return x >= -EPS && x <= r/2.0 + EPS && y >= -r - EPS && y <= EPS;
         }
 
         return false;
