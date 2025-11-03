@@ -68,7 +68,7 @@
         GAREA.innerHTML = "";
         const k = SCALE / r;
 
-
+        // Четверть круга в I квадранте
         const radius = (r / 2) * k;
         const arc = document.createElementNS("http://www.w3.org/2000/svg", "path");
         arc.setAttribute("d",
@@ -80,6 +80,7 @@
         arc.setAttribute("class", "shape");
         GAREA.appendChild(arc);
 
+        // Треугольник во II квадранте
         const A = toPx(0, 0, r);
         const B = toPx(-r, 0, r);
         const C = toPx(0, -r/2, r);
@@ -88,7 +89,7 @@
         tri.setAttribute("class", "shape");
         GAREA.appendChild(tri);
 
-
+        // Прямоугольник в IV квадранте
         const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
         rect.setAttribute("x", CX);
         rect.setAttribute("y", CY);
@@ -185,7 +186,10 @@
     document.querySelectorAll('input[name="r"]').forEach(radio => {
         radio.addEventListener('change', () => {
             const r = getSelectedR();
-            if (r) renderArea(r);
+            if (r) {
+                renderArea(r);
+                draw(allHistory); // Перерисовываем все точки под новый R
+            }
             onPreview();
         });
     });
@@ -257,7 +261,7 @@
             if (start === 0 && i === 0) tr.classList.add('latest');
 
             const ms = (Number(row.scriptTimeMs) || 0).toFixed(3);
-            const cells = [row.x, row.y, row.r, (row.hit ? "✓ Да" : "✗ Нет"), row.time, ms];
+            const cells = [row.x, row.y, row.r, (row.hit ? "Да" : "Нет"), row.time, ms];
 
             cells.forEach(val => {
                 const td = document.createElement('td');
@@ -287,8 +291,9 @@
     });
 
 
+    // КЛЮЧЕВАЯ ФУНКЦИЯ: Рисуем ВСЕ точки, масштабируя под текущий R
     function draw(history) {
-    console.log("вызван draw(), history:", history)
+        console.log("вызван draw(), history:", history);
         allHistory = (history || [])
             .slice()
             .sort((a, b) => new Date(b.time) - new Date(a.time));
@@ -301,18 +306,22 @@
         const r = getSelectedR();
         if (!r) return;
 
-        allHistory.forEach(row => {
-            if (row.r !== r) return;
-
+        allHistory.forEach((row, i) => {
             const {X, Y} = toPx(row.x, row.y, r);
+
             const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
             circle.setAttribute("cx", X);
             circle.setAttribute("cy", Y);
             circle.setAttribute("r", 5);
             circle.setAttribute("class", `pt ${row.hit ? 'hit' : 'miss'}`);
 
+            // Подсветка последней точки
+            if (i === 0) {
+                circle.classList.add('latest-point');
+            }
+
             const title = document.createElementNS("http://www.w3.org/2000/svg", "title");
-            title.textContent = `(${row.x}, ${row.y}) - ${row.hit ? 'Попадание' : 'Промах'}`;
+            title.textContent = `(${row.x}, ${row.y}), R=${row.r} — ${row.hit ? 'Попадание' : 'Промах'}`;
             circle.appendChild(title);
 
             GPTS.appendChild(circle);
@@ -363,7 +372,7 @@
             }
             removePreview();
             renderArea(r);
-            draw(data.history);
+            draw(data.history); // Перерисовываем все точки
         })
         .catch(err => {
             console.error("Ошибка fetch:", err);
@@ -372,6 +381,7 @@
     });
 
 
+    // Инициализация
     renderGrid();
     const r0 = getSelectedR();
     if (r0) renderArea(r0);

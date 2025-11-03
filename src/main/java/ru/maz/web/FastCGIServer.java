@@ -55,7 +55,7 @@ public class FastCGIServer {
         try (ServerSocket server = new ServerSocket()) {
             server.setReuseAddress(true);
             server.bind(new InetSocketAddress("127.0.0.1", port));
-            System.err.println("[FastCGI] Listening on 127.0.0.1:" + port);
+            System.err.println("НЕ МОЖЕТ БЫТЬ, ОНО РАБОТАЕТ НА 127.0.0.1:" + port);
             while (true) {
                 Socket s = server.accept();
                 try {
